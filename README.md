@@ -1,2 +1,31 @@
-# P.B.D.D.-Trabalho-Avaliativo-C.R.U.D.
-Trabalho da UNIFSA de P.B.D.D. por Guilherme Mendes R. da turma 28M4A.
+## TRABALHO AVALIATIVO	PROJETO DE BANCO DE DADOS
+
+
+
+#### Identificação:
+
+* -Guilherme Mendes Ribeiro
+* -Projeto de Banco de Dados
+* -Anderson Soares da Costa
+
+
+
+#### Sobre o projeto:
+
+/* Eu ainda não conclui este trabalho... */
+
+\*breve explicação do trabalho\*
+
+
+
+#### Tecnologias utilizadas:
+
+* PostgreSQL pgAdmin4
+* Python PyQt6(Interface Grafica)
+
+#### Banco de dados:
+
+
+
+#### Como executar:
+
