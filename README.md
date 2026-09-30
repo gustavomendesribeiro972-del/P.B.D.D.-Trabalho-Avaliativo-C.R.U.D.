@@ -20,8 +20,8 @@
 
 #### Tecnologias utilizadas:
 
-* PostgreSQL pgAdmin4
-* Python PyQt6(Interface Grafica)
+* PostgreSQL pgAdmin4;
+* Python PyQt6(Interface Grafica), SQLAlchemy;
 
 #### Banco de dados:
 
