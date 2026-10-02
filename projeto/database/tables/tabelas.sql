@@ -93,8 +93,6 @@ CREATE TABLE produto(
 		CHECK (preco_custo >= 0),
 	preco_venda_base NUMERIC(10, 2)NOT NULL
 		CHECK (preco_venda_base >= 0),
-	status VARCHAR(30) NOT NULL DEFAULT 'DISPONIVEL'
-		CHECK (status IN ('DISPONIVEL', 'SEM ESTOQUE')),
 	data_criacao TIMESTAMP NOT NULL DEFAULT now(),
 	data_alteracao TIMESTAMP NOT NULL DEFAULT now(),
 
@@ -102,6 +100,7 @@ CREATE TABLE produto(
 		FOREIGN KEY (categoria_id)
 		REFERENCES categoria(id_categoria)
 );
+
 
 CREATE TABLE produto_variacao(
 	id_variacao SERIAL PRIMARY KEY,

@@ -45,7 +45,9 @@ INSERT INTO produto (categoria_id, codigo_interno, nome_produto, descricao_produ
 INSERT INTO produto_variacao (produto_id, codigo_barras, sku_variacao, tamanho, cor, quantidade_estoque, estoque_minimo) VALUES
 (1, '789123456001', 'CAM-OVR-BLK-M', 'M', 'Preto', 25, 5),
 (1, '789123456002', 'CAM-OVR-BLK-G', 'G', 'Preto', 15, 5),
-(2, '789123456003', 'TEN-RUN-BLU-41', '41', 'Azul', 10, 2);
+(2, '789123456003', 'TEN-RUN-BLU-41', '41', 'Azul', 10, 2),
+(2, '789123456004', 'TEN-RUN-BLU-38', '38', 'Azul', 1, 2),
+(2, '789123456005', 'TEN-RUN-BLU-36', '36', 'Azul', 0, 2);
 
 -- HISTORICO_PRECO
 INSERT INTO historico_preco (variacao_id, prc_custo_anterior, prc_custo_novo, prc_venda_anterior, prc_venda_novo, funcionario_id) VALUES
