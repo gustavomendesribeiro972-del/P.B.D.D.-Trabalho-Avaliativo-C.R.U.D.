@@ -48,5 +48,3 @@ WHERE v.status = 'CONCLUÍDA' GROUP BY f.id_funcionario, f.nome_Apelido, DATE(v.
 SELECT * FROM vw_geral_estoque_produtos;
 SELECT * FROM vw_estoque_critico;
 SELECT * FROM vw_resumo_caixa_diario;
-
-DROP VIEW vw_geral_estoque_produtos
