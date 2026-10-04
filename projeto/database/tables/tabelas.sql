@@ -213,7 +213,7 @@ CREATE TABLE movimentacao_estoque (
 	quantidade INTEGER NOT NULL CHECK (quantidade != 0),
 	data_hora TIMESTAMP NOT NULL DEFAULT now(),
 	motivo_obs VARCHAR(255),
-	origiem_ref VARCHAR(100),
+	origem_ref VARCHAR(100),
 
 	CONSTRAINT fk_mov_estoq_variacao
 		FOREIGN KEY (variacao_id)
