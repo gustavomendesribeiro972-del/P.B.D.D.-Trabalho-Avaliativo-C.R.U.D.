@@ -69,7 +69,7 @@ INSERT INTO pagamento_venda (venda_id, forma_pagamento, valor) VALUES
 (2, 'PIX', 219.90);
 
 -- MOVIMENTACAO_ESTOQUE
-INSERT INTO movimentacao_estoque (variacao_id, funcionario_id, venda_id, tipo, quantidade, motivo_obs, origiem_ref) VALUES
+INSERT INTO movimentacao_estoque (variacao_id, funcionario_id, venda_id, tipo, quantidade, motivo_obs, origem_ref) VALUES
 (1, 2, 1, 'SAIDA', -2, 'Baixa por venda', 'CUPOM-2026-001'),
 (3, 2, 2, 'SAIDA', -1, 'Baixa por venda', 'CUPOM-2026-002');
 
