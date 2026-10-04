@@ -35,16 +35,33 @@ CREATE OR REPLACE VIEW vw_resumo_caixa_diario AS
 SELECT
 	f.id_funcionario,
 	f.nome_Apelido AS nome_operador,
-	DATE(v.data_hora) AS data_venda,
-	COUNT(v.id_venda) AS quantidade_vendas,
-	SUM(v.subtotal) AS total_subtotal,
-	SUM(v.desconto) AS total_descontos,
-	SUM(v.total) AS total_faturado,
-	ROUND(AVG(v.total), 2) AS ticket_medio
-FROM venda v
+	DATE(ve.data_hora) AS data_venda,
+	COUNT(ve.id_venda) AS quantidade_vendas,
+	SUM(ve.subtotal) AS total_subtotal,
+	SUM(ve.desconto) AS total_descontos,
+	SUM(ve.total) AS total_faturado,
+	ROUND(AVG(ve.total), 2) AS ticket_medio
+FROM venda ve
 JOIN funcionario f ON v.funcionario_id = f.id_funcionario
-WHERE v.status = 'CONCLUÍDA' GROUP BY f.id_funcionario, f.nome_Apelido, DATE(v.data_hora);
+WHERE ve.status = 'CONCLUÍDA' GROUP BY f.id_funcionario, f.nome_Apelido, DATE(ve.data_hora);
 
+CREATE OR REPLACE VIEW vw_vendas_recentes AS
+SELECT 
+	ve.id_venda, 
+	ve.numero_cupom, 
+	ve.cliente_id, 
+	ve.funcionario_id,
+	f.nome_Apelido AS nome_operador, 
+	ve.total, 
+	ve.status, 
+	ve.data_hora
+FROM venda ve 
+JOIN funcionario f
+ON ve.funcionario_id = f.id_funcionario
+ORDER BY id_venda DESC
+LIMIT 10;
+
+SELECT * FROM vw_vendas_recentes;
 SELECT * FROM vw_geral_estoque_produtos;
 SELECT * FROM vw_estoque_critico;
 SELECT * FROM vw_resumo_caixa_diario;
