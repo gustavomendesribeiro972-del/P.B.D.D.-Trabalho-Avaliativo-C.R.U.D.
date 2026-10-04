@@ -56,8 +56,7 @@ SELECT
 	ve.status, 
 	ve.data_hora
 FROM venda ve 
-JOIN funcionario f
-ON ve.funcionario_id = f.id_funcionario
+JOIN funcionario f ON ve.funcionario_id = f.id_funcionario
 ORDER BY id_venda DESC
 LIMIT 10;
 
