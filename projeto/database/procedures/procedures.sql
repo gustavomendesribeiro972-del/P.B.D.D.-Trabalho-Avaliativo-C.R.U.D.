@@ -40,7 +40,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE PROCEDRUE adicionar_item_venda(
+CREATE OR REPLACE PROCEDURE adicionar_item_venda(
 	p_venda_id INTEGER,
 	p_variacao_id INTEGER,
 	p_quantidade INTEGER,
@@ -62,17 +62,58 @@ BEGIN
 	IF v_estoque_atual < p_quantidade THEN
 		RAISE EXCEPTION 'Não tem estoque suficiente para o produto de variação ID:%. Estoque atual:%. Solicitado:%',
 			p_variacao_id, v_estoque_atual, p_quantidade;
-
+	END IF;
+	
 	v_subtotal := (p_quantidade * p_preco_unitario) - p_desconto_item;
 
-	INSERT INTO (
+	INSERT INTO item_venda (
 		venda_id, variacao_id, quantidade, preco_unitario, desconto_item, subtotal
 	)
 	VALUES(
-		p_venda_id, p_variacao_id, p_quantidade, p_preco_unitario
-		--OBS:CONTINUAR...
+		p_venda_id, p_variacao_id, p_quantidade, p_preco_unitario, p_desconto_item, v_subtotal
+	);
+
+	UPDATE produto_variacao
+	SET quantidade_estoque = quantidade_estoque - p_quantidade
+	WHERE id_variacao = p_variacao_id;
+
+	SELECT funcionario_id
+	INTO v_funcionario_id
+	FROM venda
+	WHERE id_venda = p_venda_id;
+
+	INSERT INTO movimentacao_estoque(
+		variacao_id, funcionario_id, venda_id, tipo, quantidade, motivo_obs, origem_ref
 	)
+	VALUES (
+		p_variacao_id, v_funcionario_id, p_venda_id, 'SAIDA', -p_quantidade, 'Baixa automática via PDV', origem_ref
+	);
 END;
 $$;
 
-CALL registrar_venda('teste23233245', 1, 2, 50.00, 5.00, 45.00, 'teste')
+CREATE OR REPLACE PROCEDURE registrar_cliente(
+	p_nome VARCHAR,
+	p_cpf VARCHAR,
+	p_email VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+	INSERT INTO cliente (nome, cpf, email)
+	VALUES (p_nome, p_cpf, p_email);
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE registra_funcionarios(
+	p_nomeUsuario VARCHAR,
+	p_nomeApelido VARCHAR,
+	p_cpf VARCHAR,
+	p_telefone VARCHAR,
+	p_email VARCHAR,
+	p_senha VARCHAR
+)
+---DEVE Digitar o nome de Usuario(pela tabela perfil e pela tabela funcionario), Apelido(tabela funcionario), sua permissao,
+SELECT*FROM venda
+
+CALL registrar_venda('teste23233577', 1, 2, 50.00, 5.00, 45.00, 'teste')
+CALL adicionar_item_venda(1, 2, 1, 120.00, 23.00)
