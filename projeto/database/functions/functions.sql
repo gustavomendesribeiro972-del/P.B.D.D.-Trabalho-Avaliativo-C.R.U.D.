@@ -20,11 +20,24 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION fn_calcular_pontos_compra(
-	p_pontos NUMERIC
+	p_pontos_total NUMERIC
 )
-RETURNS NUMERIC
+RETURNS INTEGER
 AS $$
 DECLARE
-	--OBS: CONTINUAR
+	v_pontos INTEGER;
+	v_fator_conversao NUMERIC := 10.00;
+BEGIN
+	IF p_pontos_total IS NULL OR p_pontos_total <= 0 THEN
+		RETURN 0;
+	END IF;
 
+	--Aredondamento para baixo com o FLOOR:
+	v_pontos := FLOOR(p_pontos_total / v_fator_conversao);
+	RETURN v_pontos;
+END;
+$$
+LANGUAGE plpgsql;
+
+SELECT fn_calcular_pontos_compra(59.90)
 SELECT fn_status_produto(2)
