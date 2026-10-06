@@ -17,7 +17,7 @@ VALUES (1, 1),		------------------
 	(2,2);		--SAMUELS
 
 -- FUNCIONARIO
-INSERT INTO funcionario (perfil_id, nome_Usuario, nome_Apelido, cpf, telefone, email, senha_hash) VALUES
+INSERT INTO funcionario (perfil_id, nome_Usuario, nome_Apelido, cpf, telefone, email, senha) VALUES
 (1, 'agatha.malevola', 'Agatha', '12345678901', '11999990001', 'agatha@lojacore.com', 'hash_senha_123'),
 (2, 'samuels.seniors', 'Samuels', '98765432100', '11999990002', 'samuels@lojacore.com', 'hash_senha_456');
 
@@ -45,7 +45,9 @@ INSERT INTO produto (categoria_id, codigo_interno, nome_produto, descricao_produ
 INSERT INTO produto_variacao (produto_id, codigo_barras, sku_variacao, tamanho, cor, quantidade_estoque, estoque_minimo) VALUES
 (1, '789123456001', 'CAM-OVR-BLK-M', 'M', 'Preto', 25, 5),
 (1, '789123456002', 'CAM-OVR-BLK-G', 'G', 'Preto', 15, 5),
-(2, '789123456003', 'TEN-RUN-BLU-41', '41', 'Azul', 10, 2);
+(2, '789123456003', 'TEN-RUN-BLU-41', '41', 'Azul', 10, 2),
+(2, '789123456004', 'TEN-RUN-BLU-38', '38', 'Azul', 1, 2),
+(2, '789123456005', 'TEN-RUN-BLU-36', '36', 'Azul', 0, 2);
 
 -- HISTORICO_PRECO
 INSERT INTO historico_preco (variacao_id, prc_custo_anterior, prc_custo_novo, prc_venda_anterior, prc_venda_novo, funcionario_id) VALUES
@@ -67,7 +69,7 @@ INSERT INTO pagamento_venda (venda_id, forma_pagamento, valor) VALUES
 (2, 'PIX', 219.90);
 
 -- MOVIMENTACAO_ESTOQUE
-INSERT INTO movimentacao_estoque (variacao_id, funcionario_id, venda_id, tipo, quantidade, motivo_obs, origiem_ref) VALUES
+INSERT INTO movimentacao_estoque (variacao_id, funcionario_id, venda_id, tipo, quantidade, motivo_obs, origem_ref) VALUES
 (1, 2, 1, 'SAIDA', -2, 'Baixa por venda', 'CUPOM-2026-001'),
 (3, 2, 2, 'SAIDA', -1, 'Baixa por venda', 'CUPOM-2026-002');
 

@@ -37,7 +37,7 @@ CREATE TABLE funcionario(
 	cpf VARCHAR(11) UNIQUE NOT NULL,
 	telefone VARCHAR(15) NOT NULL,
 	email VARCHAR(254) UNIQUE NOT NULL,
-	senha_hash VARCHAR(60) NOT NULL,
+	senha VARCHAR(60) NOT NULL,
 	status VARCHAR(30) NOT NULL DEFAULT 'ATIVO' 
 		CHECK (status IN ('ATIVO', 'INATIVO', 'SUSPENSO')),
 	criado_em TIMESTAMP NOT NULL DEFAULT now(),
@@ -93,8 +93,6 @@ CREATE TABLE produto(
 		CHECK (preco_custo >= 0),
 	preco_venda_base NUMERIC(10, 2)NOT NULL
 		CHECK (preco_venda_base >= 0),
-	status VARCHAR(30) NOT NULL DEFAULT 'DISPONIVEL'
-		CHECK (status IN ('DISPONIVEL', 'SEM ESTOQUE')),
 	data_criacao TIMESTAMP NOT NULL DEFAULT now(),
 	data_alteracao TIMESTAMP NOT NULL DEFAULT now(),
 
@@ -102,6 +100,7 @@ CREATE TABLE produto(
 		FOREIGN KEY (categoria_id)
 		REFERENCES categoria(id_categoria)
 );
+
 
 CREATE TABLE produto_variacao(
 	id_variacao SERIAL PRIMARY KEY,
@@ -214,7 +213,7 @@ CREATE TABLE movimentacao_estoque (
 	quantidade INTEGER NOT NULL CHECK (quantidade != 0),
 	data_hora TIMESTAMP NOT NULL DEFAULT now(),
 	motivo_obs VARCHAR(255),
-	origiem_ref VARCHAR(100),
+	origem_ref VARCHAR(100),
 
 	CONSTRAINT fk_mov_estoq_variacao
 		FOREIGN KEY (variacao_id)
