@@ -12,10 +12,9 @@
 
 #### Sobre o projeto:
 
-/* Eu ainda não conclui este trabalho... */
-
-\*breve explicação do trabalho\*
-
+Não consegui concluir, deu um monte de erro principalmente com o pyqt6.
+Eu tentei, consegui fazer as tabelas, as views, as procedures, as functions só que eu não consegui fazer um aplicativo python que usasse todas as views.
+Por isso não tem conteúdo para o video.
 
 
 #### Tecnologias utilizadas:
@@ -23,9 +22,4 @@
 * PostgreSQL pgAdmin4;
 * Python PyQt6(Interface Grafica), SQLAlchemy;
 
-#### Banco de dados:
-
-
-
-#### Como executar:
 
