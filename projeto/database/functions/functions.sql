@@ -1,3 +1,27 @@
+CREATE OR REPLACE FUNCTION fn_autenticar_funcionario(
+	p_cpf VARCHAR,
+	p_senha VARCHAR
+)
+RETURNS TABLE (
+	id_funcionario INTEGER,
+	nome_Usuario VARCHAR,
+	nome_Apelido VARCHAR,
+	nomeUsuario VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+	RETURN QUERY
+	SELECT
+		f.id_funcionario,
+		f.nome_Usuario,
+		COALESCE(p.nomeUsuario, 'SEM PERFIL') AS nome_Usuario
+		FROM funcionario f
+		LEFT JOIN perfil p on f.perfil_id = p.id_perfil
+		WHERE f.cpf = p_cpf AND f.senha = p_senha;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION fn_status_produto(
 	p_produto_id INTEGER
 )
@@ -39,5 +63,6 @@ END;
 $$
 LANGUAGE plpgsql;
 
+SELECT fn_autenticar_funcionario('55544433322', 'hash_senha_999')
 SELECT fn_calcular_pontos_compra(59.90)
 SELECT fn_status_produto(2)

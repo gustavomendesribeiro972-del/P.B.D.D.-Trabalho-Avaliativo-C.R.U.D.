@@ -16,7 +16,7 @@ BEGIN
 		SELECT EXISTS(SELECT 1 FROM cliente WHERE id_cliente = p_cliente_id) INTO v_cliente_existe;
 		
 		IF NOT v_cliente_existe THEN
-			RAISE EXCEPTION 'O cliente informado (ID %) não foi encontrado no cadastro.', p_cliente_id;
+			RAISE EXCEPTION 'ERR: O cliente informado (ID %) não foi encontrado no cadastro.', p_cliente_id;
 		END IF;
 	END IF;
 
@@ -60,7 +60,7 @@ BEGIN
 	WHERE id_variacao = p_variacao_id;
 
 	IF v_estoque_atual < p_quantidade THEN
-		RAISE EXCEPTION 'Não tem estoque suficiente para o produto de variação ID:%. Estoque atual:%. Solicitado:%',
+		RAISE EXCEPTION 'ERR: Não tem estoque suficiente para o produto de variação ID:%. Estoque atual:%. Solicitado:%',
 			p_variacao_id, v_estoque_atual, p_quantidade;
 	END IF;
 	
@@ -112,8 +112,42 @@ CREATE OR REPLACE PROCEDURE registra_funcionarios(
 	p_email VARCHAR,
 	p_senha VARCHAR
 )
----DEVE Digitar o nome de Usuario(pela tabela perfil e pela tabela funcionario), Apelido(tabela funcionario), sua permissao,
-SELECT*FROM venda
+LANGUAGE plpgsql
+AS $$
+DECLARE
+	v_perfil_id INTEGER;
+	v_funcionario_existe BOOLEAN := FALSE;
+	v_cpf_limpo VARCHAR;
+BEGIN
+	v_cpf_limpo := REGEXP_REPLACE(p_cpf, '[^0-9]', '', 'g');
+	
+	SELECT EXISTS(
+		SELECT 1 FROM funcionario
+		WHERE LOWER(TRIM(nome_Usuario)) = LOWER(TRIM(p_nomeUsuario)) OR cpf = v_cpf_limpo
+	) INTO v_funcionario_existe;
 
+	IF v_funcionario_existe THEN -- v_funcionario_existe = TRUE
+		RAISE EXCEPTION 'ERR: Este nome de usuário / CPF já existe nesta loja!';
+	END IF;
+
+	SELECT id_perfil
+	INTO v_perfil_id
+	FROM perfil
+	WHERE LOWER(TRIM(nomeUsuario)) = LOWER(TRIM(p_nomeUsuario));
+
+	IF v_perfil_id IS NULL THEN
+		INSERT INTO perfil (nomeUsuario, descricao)
+        VALUES (p_nomeUsuario, 'Perfil criado automaticamente no cadastro de funcionário')
+        RETURNING id_perfil INTO v_perfil_id;
+	END IF;
+	
+	INSERT INTO funcionario (perfil_id, nome_Usuario, nome_Apelido, cpf, telefone, email, senha)
+	VALUES (v_perfil_id, p_nomeUsuario, p_nomeApelido, p_cpf, p_telefone, p_email, p_senha);
+END;
+$$;
+
+SELECT*FROM funcionario
+CALL registrar_cliente('YGONA MOURA', '12345678911', 'ygona@empresa.com')
+CALL registra_funcionarios('gerente_vendas', 'Marcos Oliveira', '55544433322', '(11) 96666-5555', 'marcos@empresa.com', 'hash_senha_999');
 CALL registrar_venda('teste23233577', 1, 2, 50.00, 5.00, 45.00, 'teste')
 CALL adicionar_item_venda(1, 2, 1, 120.00, 23.00)

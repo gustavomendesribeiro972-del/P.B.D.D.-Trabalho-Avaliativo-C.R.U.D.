@@ -42,7 +42,7 @@ SELECT
 	SUM(ve.total) AS total_faturado,
 	ROUND(AVG(ve.total), 2) AS ticket_medio
 FROM venda ve
-JOIN funcionario f ON v.funcionario_id = f.id_funcionario
+JOIN funcionario f ON ve.funcionario_id = f.id_funcionario
 WHERE ve.status = 'CONCLUÍDA' GROUP BY f.id_funcionario, f.nome_Apelido, DATE(ve.data_hora);
 
 CREATE OR REPLACE VIEW vw_vendas_recentes AS
@@ -56,7 +56,8 @@ SELECT
 	ve.status, 
 	ve.data_hora
 FROM venda ve 
-JOIN funcionario f ON ve.funcionario_id = f.id_funcionario
+JOIN funcionario f
+ON ve.funcionario_id = f.id_funcionario
 ORDER BY id_venda DESC
 LIMIT 10;
 

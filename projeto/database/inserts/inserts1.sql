@@ -17,7 +17,7 @@ VALUES (1, 1),		------------------
 	(2,2);		--SAMUELS
 
 -- FUNCIONARIO
-INSERT INTO funcionario (perfil_id, nome_Usuario, nome_Apelido, cpf, telefone, email, senha_hash) VALUES
+INSERT INTO funcionario (perfil_id, nome_Usuario, nome_Apelido, cpf, telefone, email, senha) VALUES
 (1, 'agatha.malevola', 'Agatha', '12345678901', '11999990001', 'agatha@lojacore.com', 'hash_senha_123'),
 (2, 'samuels.seniors', 'Samuels', '98765432100', '11999990002', 'samuels@lojacore.com', 'hash_senha_456');
 
