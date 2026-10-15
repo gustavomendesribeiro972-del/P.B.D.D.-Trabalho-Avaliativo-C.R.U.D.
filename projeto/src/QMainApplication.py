@@ -213,9 +213,6 @@ class TelaPrincipalSistema(QWidget):
         self.btn_perfil, alignment=Qt.AlignmentFlag.AlignHCenter
     )
 
-    esque_panel.setStyleSheet(
-        "background-color: #d8e2e8; border-radius: 10px;"
-    )
     esque_panel.setFixedWidth(180)
 
     # --- PAINEL DIREITO (Grade 3x3 de Submenus) ---
@@ -235,10 +232,6 @@ class TelaPrincipalSistema(QWidget):
       btn.setMinimumSize(100, 100)
       btn.clicked.connect(lambda checked, idx=index + 1: self.abrir_submenu(idx))
       direi_layout.addWidget(btn, pos[0], pos[1])
-
-    direi_panel.setStyleSheet(
-        "background-color: #c5d3dc; border-radius: 10px;"
-    )
 
     main_layout.addWidget(esque_panel)
     main_layout.addWidget(direi_panel)
@@ -268,7 +261,7 @@ class TelaPrincipalSistema(QWidget):
     layout.setSpacing(20)
 
     title = QLabel(titulo_texto)
-    title.setStyleSheet("font-size: 24px; font-weight: bold; color: #ffffff;")
+    title.setStyleSheet("font-size: 24px; font-weight: bold;")
     title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
     description = QLabel(desc_texto)
@@ -283,7 +276,6 @@ class TelaPrincipalSistema(QWidget):
     layout.addWidget(description)
     layout.addWidget(back_btn, alignment=Qt.AlignmentFlag.AlignHCenter)
 
-    page.setStyleSheet("background-color: #7b95a6;")
     return page
 
   def abrir_submenu(self, index):
