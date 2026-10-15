@@ -68,24 +68,43 @@ def vw_resumo_caixa_diario():
         sessao.close()
 
 #Functions:
-def fn_autenticar_funcionario():
+def fn_autenticar_funcionario(cpf, senha):
     sessao = SessionLocal()
     try:
-        query = text("SELECT fn_autenticar_funcionario(CAST(:cpf AS VARCHAR), CAST(:senha AS VARCHAR))")
-        
-        resultado = sessao.execute(query)
-        return resultado
+        query = text("SELECT fn_autenticar_funcionario(:p_cpf, :p_senha);")
+        resultado = sessao.execute(query, {"p_cpf": cpf, "p_senha":senha})
+
+        linhas = [dict(row._mapping) for row in resultado.fetchall()]
+        return linhas
     except Exception as e:
         print(f"Ocorreu um erro ao autenticar este usuário: {e}")
+        sessao.rollback()
+        raise e
+
+
+def fn_status_produto(produto_id):
+    #PARA FAZER:
+    sessao = SessionLocal()
+    try:
+        query = text("SELECT fn_status_produto(:p_produto_id);")
+        resultado = sessao.execute(query, {"p_produto_id": produto_id})
+        return resultado
+    except Exception as e:
+        print(f"Ocorreu um erro ao acessar este produto: {e} ")
         return []
     finally:
         sessao.close()
 
-#def fn_status_produto():
-#    #PARA FAZER:
-#    sessao = SessionLocal()
-#   try:
-#        query = text("SELECT fn_status_produto(CAST(produto_id INTEGER))")
+def fn_calcular_pontos_compra(pontos_total):
+    sessao = SessionLocal()
+    try:
+        query = text("SELECT fn_calcular_pontos_compra(p_pontos_total))")
+        resultado = sessao.execute(query, {"p_pontos_total": pontos_total})
+        return resultado
+    except Exception as e:
+        print(f"Não foi possivel calcular os pontos: {e}")
+    finally:
+        sessao.close()
 
 #Procedures:
 def cadastrar_cliente(nome, cpf, email):
