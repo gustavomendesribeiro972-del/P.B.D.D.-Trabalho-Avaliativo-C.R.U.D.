@@ -50,44 +50,71 @@ CREATE OR REPLACE PROCEDURE adicionar_item_venda(
 LANGUAGE plpgsql 
 AS $$
 DECLARE
-	v_estoque_atual INTEGER;
 	v_subtotal NUMERIC;
 	v_funcionario_id INTEGER;
 BEGIN
-	SELECT quantidade_estoque
-	INTO v_estoque_atual
-	FROM produto_variacao
-	WHERE id_variacao = p_variacao_id;
-
-	IF v_estoque_atual < p_quantidade THEN
-		RAISE EXCEPTION 'ERR: Não tem estoque suficiente para o produto de variação ID:%. Estoque atual:%. Solicitado:%',
-			p_variacao_id, v_estoque_atual, p_quantidade;
+	IF p_quantidade IS NULL OR p_quantidade <= 0 THEN
+		RAISE EXCEPTION "ERR: Quantidade deve ser maior que zero.";
 	END IF;
-	
-	v_subtotal := (p_quantidade * p_preco_unitario) - p_desconto_item;
-
-	INSERT INTO item_venda (
-		venda_id, variacao_id, quantidade, preco_unitario, desconto_item, subtotal
-	)
-	VALUES(
-		p_venda_id, p_variacao_id, p_quantidade, p_preco_unitario, p_desconto_item, v_subtotal
-	);
-
-	UPDATE produto_variacao
-	SET quantidade_estoque = quantidade_estoque - p_quantidade
-	WHERE id_variacao = p_variacao_id;
 
 	SELECT funcionario_id
 	INTO v_funcionario_id
 	FROM venda
 	WHERE id_venda = p_venda_id;
 
-	INSERT INTO movimentacao_estoque(
-		variacao_id, funcionario_id, venda_id, tipo, quantidade, motivo_obs, origem_ref
+	IF NOT FOUND THEN
+		RAISE EXCEPTION "ERR: A Venda de ID % não encontrado.", p_venda_id;
+	END IF;
+
+	IF v_funcionario_id IS NULL THEN
+		RAISE EXCEPTION "ERR: A Venda de ID % não possui funcionário responsável vinculado", p_venda_id;
+	END IF;
+
+	UPDATE produto_variacao
+	SET quantidade_estoque = quantidade_estoque - p_quantidade
+	WHERE id_variacao = p_variacao_id AND quantidade_estoque = p_quantidade;
+
+	IF NOT FOUND THEN
+		RAISE EXCEPTION "ERR: Estoque insuficiente ou variação ID % não encontrado.", p_variacao_id;
+	END IF;
+
+	v_subtotal := (p_quantidade * p_preco_unitario) - p_desconto_item;
+
+	INSERT INTO item_venda(
+		venda_id, 
+		variacao_id, 
+		quantidade, 
+		preco_unitario, 
+		desconto_item, 
+		subtotal
 	)
 	VALUES (
-		p_variacao_id, v_funcionario_id, p_venda_id, 'SAIDA', -p_quantidade, 'Baixa automática via PDV', origem_ref
-	);
+		p_venda_id, 
+		p_variacao_id, 
+		p_quantidade, 
+		p_preco_unitario, 
+		p_desconto_item, 
+		v_subtotal
+	)
+
+	INSERT INTO movementacao_estoque(
+		variacao_id,
+		funcionario_id,
+		venda_id,
+		tipo,
+		quantidade,
+		motivo_obs,
+		origem_ref
+	)
+	VALUES (
+		p_variacao_id,
+		v_funcionario_id,
+		p_venda_id,
+		'SAÍDA',
+		p_quantidade,
+		'Baixa automática via PDV',
+		p_venda_id
+	)
 END;
 $$;
 
@@ -147,7 +174,7 @@ END;
 $$;
 
 SELECT*FROM funcionario
-CALL registrar_cliente('YGONA MOURA', '12345678911', 'ygona@empresa.com')
+CALL registrar_cliente('YGONA MOURA', '12345678911', 'ygona@empresa.com');
 CALL registra_funcionarios('gerente_vendas', 'Marcos Oliveira', '55544433322', '(11) 96666-5555', 'marcos@empresa.com', 'hash_senha_999');
-CALL registrar_venda('teste23233577', 1, 2, 50.00, 5.00, 45.00, 'teste')
-CALL adicionar_item_venda(1, 2, 1, 120.00, 23.00)
+CALL registrar_venda('teste23233577', 1, 2, 50.00, 5.00, 45.00, 'teste');
+CALL adicionar_item_venda(1, 2, 1, 120.00, 23.00);
