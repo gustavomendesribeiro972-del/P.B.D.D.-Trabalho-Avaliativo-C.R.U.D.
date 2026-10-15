@@ -1,5 +1,5 @@
 ## TRABALHO AVALIATIVO	PROJETO DE BANCO DE DADOS
-
+UNIFSA // ENGENHARIA DE SOFTWARE **28M4A**
 
 
 #### Identificação:
@@ -12,14 +12,35 @@
 
 #### Sobre o projeto:
 
-Não consegui concluir, deu um monte de erro principalmente com o pyqt6.
-Eu tentei, consegui fazer as tabelas, as views, as procedures, as functions só que eu não consegui fazer um aplicativo python que usasse todas as views.
-Por isso não tem conteúdo para o video.
+LojaCore é um aplicativo em PyQt6 CRUD simples. Com uma comunicação Python<->SQL(local) realizada por meio da SQLAlchemy
 
 
 #### Tecnologias utilizadas:
 
 * PostgreSQL pgAdmin4;
-* Python PyQt6(Interface Grafica), SQLAlchemy;
+* Python:
+    * PyQt6(Interface Grafica),
+    * SQLAlchemy,
+    * psycopg.
 
 
+
+#### O Banco de dados:
+
+##### *Tabelas:*
+
+##### *Inserts:*
+
+##### *Views:*
+
+##### *Functions:*
+
+##### *Procedures:*
+
+
+
+#### Python:
+
+##### *PyQt6:*
+
+##### *SQLAlchemy:*
