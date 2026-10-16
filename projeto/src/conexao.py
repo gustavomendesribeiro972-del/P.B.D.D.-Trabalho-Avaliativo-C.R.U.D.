@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 DATABASE_URL = "postgresql://postgres:root@localhost:5432/LojaCore"
 
 engine = create_engine(DATABASE_URL, echo=False)
-SessionLocal = sessionmaker(bind = engine)
+SessionLocal = sessionmaker(bind=engine)
 
 
 def testar_conexao():
@@ -131,35 +131,69 @@ def cadastrar_cliente(nome, cpf, email):
     finally:
         sessao.close
 
-def registrar_funcionarios(nomeUsuario: str, nomeApelido: str, cpf: str, telefone: str, email: str, senha: str):
+def app_buscar_funcionario_por_cpf(cpf):
+    try:
+        with engine.connect() as conexao:
+            resultado = conexao.execute(
+                text("""
+                    SELECT cpf, nome_Usuario, telefone, email
+                    FROM funcionario
+                    WHERE cpf = :cpf
+                """),
+                {"cpf": cpf}                
+            )
+
+            funcionario = resultado.mappings().first()
+
+            if funcionario:
+                return dict(funcionario)
+
+            return None
+        
+    except Exception as e:
+        print(f"Erro ao buscar funcionário ativo: {e}")
+        return None
+
+def registrar_funcionarios(
+        nomeUsuario: str, 
+        nomeApelido: str, 
+        cpf: str, 
+        telefone: str, 
+        email: str, 
+        senha: str
+):
     sessao = SessionLocal()
     try:
         query = text ("""
-            CALL registrar_funcionarios(
-                CAST:(:nomeUsuario AS VARCHAR),
-                CAST:(:nomeApelido AS VARCHAR),
-                CAST:(:cpf AS VARCHAR),
-                CAST:(:telefone AS VARCHAR),
-                CAST:(:email AS VARCHAR),
-                CAST:(:senha AS VARCHAR)
+            CALL registra_funcionarios(
+                CAST(:nomeUsuario AS VARCHAR),
+                CAST(:nomeApelido AS VARCHAR),
+                CAST(:cpf AS VARCHAR),
+                CAST(:telefone AS VARCHAR),
+                CAST(:email AS VARCHAR),
+                CAST(:senha AS VARCHAR)
             );
         """)
 
         sessao.execute(query, {
-                "nomeUsuario": str(nomeUsuario),
-                "nomeApelido": str(nomeApelido),
-                "cpf":  str(cpf),
-                "telefone": str(telefone),
-                "email":    str(email),
-                "senha":    str(senha)
+                "nomeUsuario": nomeUsuario,
+                "nomeApelido": nomeApelido,
+                "cpf":  cpf,
+                "telefone": telefone,
+                "email":    email,
+                "senha":    senha
             }
         )
+
         sessao.commit()
+
         return True, "Funcionario registrado com sucesso!"
+    
     except Exception as e:
         sessao.rollback()
         msg_erro = str(e).split("\n")[0]
         return False, f"Erro: {msg_erro}"
+    
     finally:
         sessao.close()
 
