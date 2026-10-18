@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QStackedWidget,
     QLabel,
+    QPlainTextEdit,
     QLineEdit,
     QMainWindow,
     QMessageBox,
@@ -15,6 +16,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
     QGridLayout,
     QHBoxLayout,
+    QHeaderView,
     QVBoxLayout,
     QWidget,
 )
@@ -36,7 +38,7 @@ from conexao import (
     registrar_venda,                 # Presente na página vendas
     testar_conexao,                  # Presente na página main, venda e cadastro / login
 
-    app_buscar_funcionario_por_cpf,
+    app_buscar_funcionario_por_cpf,  #Presente na página de Login / Perfil
 )
 
 #Restrições ao cadastrar:
@@ -68,6 +70,167 @@ def validar_email(email):
 
     return True
 #Eu era pra ter colocado junto com a classe de cadastro mas o programa não estava detectando as funções...
+
+def formatar_moeda(valor):
+    """Formata um valor numérico como moeda brasileira."""
+    try:
+        numero = Decimal(str(valor))
+        if not numero.is_finite():
+            return str(valor)
+
+        formatado = f"{numero:,.2f}"
+        formatado = formatado.replace(",", "X")
+        formatado = formatado.replace(".", ",")
+        formatado = formatado.replace("X", ".")
+        return f"R$ {formatado}"
+
+    except (InvalidOperation, ValueError, TypeError):
+        return str(valor)
+
+
+def formatar_resumo_caixa(resumo):
+    """Formata os dados do caixa para exibição na interface."""
+
+    if resumo is None:
+        return "Nenhum movimento registrado."
+
+    # Converte um registro Row do SQLAlchemy em dicionário.
+    if hasattr(resumo, "_mapping"):
+        resumo = dict(resumo._mapping)
+
+    # Trata um único registro representado por dicionário.
+    if isinstance(resumo, dict):
+        if not resumo:
+            return "Nenhum movimento registrado."
+
+        linhas = ["RESUMO DO CAIXA DIÁRIO", ""]
+
+        for chave, valor in resumo.items():
+            nome = str(chave).replace("_", " ").capitalize()
+
+            if valor is None:
+                valor_formatado = "Não informado"
+
+            elif isinstance(valor, (int, float, Decimal)):
+                chave_normalizada = str(chave).lower()
+
+                termos_monetarios = (
+                    "valor", "total", "saldo", "receita",
+                    "faturamento", "caixa", "venda",
+                    "desconto", "entrada", "saida",
+                    "saída", "lucro", "dinheiro"
+                )
+
+                if any(
+                    termo in chave_normalizada
+                    for termo in termos_monetarios
+                ):
+                    valor_formatado = formatar_moeda(valor)
+                else:
+                    valor_formatado = str(valor)
+
+            else:
+                valor_formatado = str(valor)
+
+            linhas.append(f"{nome}: {valor_formatado}")
+
+        return "\n".join(linhas)
+
+    # Trata a lista de registros retornada por fetchall().
+    if isinstance(resumo, (list, tuple)):
+        if not resumo:
+            return "Nenhum movimento registrado."
+
+        if len(resumo) == 1:
+            return formatar_resumo_caixa(resumo[0])
+
+        linhas = ["RESUMO DO CAIXA DIÁRIO", ""]
+
+        for indice, registro in enumerate(resumo, start=1):
+            linhas.append(f"Registro {indice}:")
+
+            if hasattr(registro, "_mapping"):
+                registro = dict(registro._mapping)
+
+            if isinstance(registro, dict):
+                texto_registro = formatar_resumo_caixa(registro)
+                # Evita repetir o título principal em cada registro.
+                texto_registro = texto_registro.replace(
+                    "RESUMO DO CAIXA DIÁRIO\n\n", "", 1
+                )
+                linhas.append(texto_registro)
+
+            elif isinstance(registro, (list, tuple)):
+                linhas.extend(
+                    f"Campo {i}: {valor}"
+                    for i, valor in enumerate(registro, start=1)
+                )
+
+            else:
+                linhas.append(str(registro))
+
+            linhas.append("")
+
+        return "\n".join(linhas).strip()
+
+    if isinstance(resumo, (int, float, Decimal)):
+        return (
+            "RESUMO DO CAIXA DIÁRIO\n\n"
+            f"Saldo/Total: {formatar_moeda(resumo)}"
+        )
+
+    return f"RESUMO DO CAIXA DIÁRIO\n\n{resumo}"
+
+
+def formatar_resumo_caixa_card(resumo):
+    """Retorna um indicador compacto para o card do caixa."""
+
+    if resumo is None:
+        return "Sem dados"
+
+    # Aceita um registro SQLAlchemy.
+    if hasattr(resumo, "_mapping"):
+        resumo = dict(resumo._mapping)
+
+    # Aceita uma lista de registros.
+    if isinstance(resumo, (list, tuple)):
+        if not resumo:
+            return "Sem dados"
+
+        if len(resumo) != 1:
+            return "ver resumo diário..."
+
+        return formatar_resumo_caixa_card(resumo[0])
+
+    if not isinstance(resumo, dict):
+        return "ver resumo diário..."
+
+    # Prioriza campos que representam valores monetários.
+    campos_prioritarios = (
+        "saldo_caixa",
+        "saldo",
+        "total_caixa",
+        "valor_caixa",
+        "faturamento",
+        "total_vendas",
+        "valor_total",
+        "total"
+    )
+
+    dados = {
+        str(chave).lower(): valor
+        for chave, valor in resumo.items()
+    }
+
+    for campo in campos_prioritarios:
+        valor = dados.get(campo)
+
+        if isinstance(valor, (int, float, Decimal)):
+            if Decimal(str(valor)).is_finite():
+                return formatar_moeda(valor)
+
+    return "Ver resumo diário"
+
 
 # Sessão:
 class SessaoUsuario:
@@ -157,11 +320,11 @@ class TelaCadastro(QWidget):
         email = self.email.text().strip()
         senha = self.senha.text().strip()
 
-        if not nome or not cpf or not senha:
+        if not nome or not cpf or not email or not senha:
             QMessageBox.warning(
                 self,
                 "Cadastro",
-                "Preencha pelo menos Nome, CPF e Senha."
+                "Preencha Nome, CPF, Email e Senha."
             )
             return
 
@@ -212,7 +375,7 @@ class TelaCadastro(QWidget):
             self.telefone.clear()
             self.senha.clear()
 
-            self.stack.setCurrentIndex(1)
+            self.stack.setCurrentIndex(0)
 
         except Exception as e:
             QMessageBox.critical(
@@ -222,7 +385,7 @@ class TelaCadastro(QWidget):
             )
 
     def ir_para_login(self):
-        self.stack.setCurrentIndex(1)
+        self.stack.setCurrentIndex(0)
 
 
 class TelaLogin(QWidget):
@@ -329,7 +492,7 @@ class TelaLogin(QWidget):
             )
 
     def ir_para_cadastro(self):
-        self.stack.setCurrentIndex(0)
+        self.stack.setCurrentIndex(1)
 
 
 class TelaEstatisticas(QWidget):
@@ -341,7 +504,7 @@ class TelaEstatisticas(QWidget):
         layout.setSpacing(15)
 
         # Título da Página
-        titulo = QLabel("📊 Painel de Estatísticas e Desempenho")
+        titulo = QLabel("Painel de Estatísticas e Desempenho")
         titulo.setFont(QFont("Arial", 18, QFont.Weight.Bold))
         layout.addWidget(titulo)
 
@@ -368,6 +531,16 @@ class TelaEstatisticas(QWidget):
         self.tabela_geral.setHorizontalHeaderLabels(
             ["ID", "Produto", "Quantidade", "Preço"]
         )
+        self.tabela_geral.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+
+        self.tabela_geral.verticalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+
+        self.tabela_geral.setMinimumHeight(300)
+        self.tabela_geral.setAlternatingRowColors(True)
         layout.addWidget(self.tabela_geral)
 
         # Botões de Ação
@@ -377,7 +550,7 @@ class TelaEstatisticas(QWidget):
         btn_atualizar.setMinimumHeight(40)
         btn_atualizar.clicked.connect(self.carregar_dados_estatisticas)
 
-        btn_voltar = QPushButton("⬅ Voltar ao Menu Principal")
+        btn_voltar = QPushButton("Voltar ao Menu Principal")
         btn_voltar.setMinimumHeight(40)
         btn_voltar.clicked.connect(lambda: self.sub_stack.setCurrentIndex(0))
 
@@ -399,7 +572,8 @@ class TelaEstatisticas(QWidget):
         lbl_titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         lbl_valor = QLabel(valor_inicial)
-        lbl_valor.setFont(QFont("Arial", 18, QFont.Weight.Bold))
+        lbl_valor.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        lbl_valor.setWordWrap(True)
         lbl_valor.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_valor.setObjectName("valor")
 
@@ -428,12 +602,17 @@ class TelaEstatisticas(QWidget):
         # 2. Resumo do caixa
         try:
             resumo = vw_resumo_caixa_diario()
+
             self.atualizar_valor_card(
                 self.card_caixa,
-                str(resumo) if resumo is not None else "R$ 0,00"
+                formatar_resumo_caixa_card(resumo)
             )
+
         except Exception as e:
-            self.atualizar_valor_card(self.card_caixa, "Erro")
+            self.atualizar_valor_card(
+                self.card_caixa,
+                "Indisponível"
+            )
             print(f"Erro ao carregar caixa: {e}")
 
         # 3. Estoque crítico
@@ -487,6 +666,16 @@ class TelaVendas(QWidget):
     self.tabela = QTableWidget()
     self.tabela.setColumnCount(4)
     self.tabela.setHorizontalHeaderLabels(["ID", "Cliente", "Data", "Total"])
+    self.tabela.horizontalHeader().setSectionResizeMode(
+        QHeaderView.ResizeMode.Stretch
+    )
+
+    self.tabela.verticalHeader().setSectionResizeMode(
+        QHeaderView.ResizeMode.ResizeToContents
+    )
+
+    self.tabela.setMinimumHeight(300)
+    self.tabela.setAlternatingRowColors(True)    
     layout.addWidget(self.tabela)
 
     btn_carregar = QPushButton("Atualizar Vendas Recentes")
@@ -503,18 +692,15 @@ class TelaVendas(QWidget):
     self.tabela.setRowCount(0)
 
     try:
-      dados = (
-          vw_vendas_recentes()
-          if "vendas_recentes" in globals()
-          else vw_vendas_recentes()
-      )
+      dados = vw_vendas_recentes() or []
       if dados:
         self.tabela.setRowCount(len(dados))
         for row_idx, row_data in enumerate(dados):
           for col_idx, valor in enumerate(row_data):
-            self.tabela.setItem(
-                row_idx, col_idx, QTableWidgetItem(str(valor))
-            )
+            if col_idx < self.tabela.columnCount():
+                self.tabela.setItem(
+                    row_idx, col_idx, QTableWidgetItem(str(valor))
+                )
     except Exception as e:
       print(f"Erro ao carregar vendas: {e}")
 
@@ -543,6 +729,15 @@ class TelaEstoqueProdutos(QWidget):
             ["Produto", "Qtd Atual", "Mínimo"]
         )
         self.tabela_critico.setAlternatingRowColors(True)
+        self.tabela_critico.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Stretch
+        )
+
+        self.tabela_critico.verticalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+
+        self.tabela_critico.setMinimumHeight(300)        
         layout.addWidget(self.tabela_critico)
 
         btn_atualizar = QPushButton("Atualizar Estoque")
@@ -595,9 +790,16 @@ class TelaCaixaDiario(QWidget):
     titulo.setFont(QFont("Arial", 18, QFont.Weight.Bold))
     layout.addWidget(titulo)
 
-    self.label_resumo = QLabel("Carregando resumo do caixa...")
-    self.label_resumo.setFont(QFont("Arial", 14))
-    layout.addWidget(self.label_resumo)
+    self.texto_resumo = QPlainTextEdit()
+    self.texto_resumo.setReadOnly(True)
+    self.texto_resumo.setPlaceholderText(
+        "Carregando resumo do caixa..."
+    )
+    self.texto_resumo.setFont(QFont("Consolas", 12))
+    self.texto_resumo.setLineWrapMode(
+        QPlainTextEdit.LineWrapMode.WidgetWidth
+    )
+    layout.addWidget(self.texto_resumo, 1)
 
     btn_voltar = QPushButton("Voltar ao Menu Principal")
     btn_voltar.clicked.connect(lambda: self.sub_stack.setCurrentIndex(0))
@@ -607,10 +809,27 @@ class TelaCaixaDiario(QWidget):
 
   def carregar_caixa(self):
     try:
-      resumo = vw_resumo_caixa_diario()
-      self.label_resumo.setText(f"Balanço / Resumo Atual:\n{resumo}")
+        resumo = vw_resumo_caixa_diario()
+        texto_formatado = formatar_resumo_caixa(resumo)
+
+        # Guarda o texto formatado na área rolável.
+        self.texto_resumo.setPlainText(texto_formatado)
+
+        # Volta ao início após atualizar os dados.
+        cursor = self.texto_resumo.textCursor()
+        cursor.movePosition(cursor.MoveOperation.Start)
+        self.texto_resumo.setTextCursor(cursor)
+
     except Exception as e:
-      self.label_resumo.setText(f"Erro ao buscar caixa diário: {e}")
+        self.texto_resumo.setPlainText(
+            "Não foi possível carregar o resumo do caixa."
+        )
+
+        QMessageBox.critical(
+            self,
+            "Erro no caixa diário",
+            str(e)
+        )
 
 
 class TelaCadastrosPontos(QWidget):
@@ -685,7 +904,7 @@ class TelaCadastrosPontos(QWidget):
 
         # Campo Email
         self.input_email_cliente = QLineEdit()
-        self.input_email_cliente.setPlaceholderText("CPF")
+        self.input_email_cliente.setPlaceholderText("Email do cliente (Opcional)")
         self.input_email_cliente.setMinimumHeight(42)
         frame_layout.addWidget(self.input_email_cliente)
 
@@ -722,16 +941,21 @@ class TelaCadastrosPontos(QWidget):
             return
 
         try:
-            cadastrar_cliente(nome=nome, cpf=cpf, email=email)
-
-            QMessageBox.information(
-                self,
-                "Sucesso",
-                "Cliente cadastrado com sucesso!"
+            sucesso, mensagem = cadastrar_cliente(
+                nome=nome,
+                cpf=cpf,
+                email=email
             )
+
+            if not sucesso:
+                QMessageBox.critical(self, "Erro", mensagem)
+                return
+
+            QMessageBox.information(self, "Sucesso", mensagem)
 
             self.input_nome_cliente.clear()
             self.input_cpf_cliente.clear()
+            self.input_email_cliente.clear()
 
         except Exception as e:
             QMessageBox.critical(
@@ -775,11 +999,23 @@ class TelaPerfil(QWidget):
         self.lbl_detalhes.setText("Nenhum usuário logado.")
         return
 
+    nome = (
+        usuario.get("nome_Usuario")
+        or usuario.get("nome_usuario")
+        or usuario.get("nomeUsuario")
+        or usuario.get("nome")
+        or "Não informado"
+    )
+
+    cpf = usuario.get("cpf", "Não informado")
+    telefone = usuario.get("telefone") or "Não informado"
+    email = usuario.get("email") or "Não informado"
+
     self.lbl_detalhes.setText(
-        f"Nome: {usuario.get('nome_Usuario', 'Não informado')}\n"
-        f"CPF: {usuario.get('cpf', 'Não informado')}\n"
-        f"Telefone: {usuario.get('telefone', 'Não informado')}\n"
-        f"E-mail: {usuario.get('email', 'Não informado')}"
+        f"Nome: {nome}\n"
+        f"CPF: {cpf}\n"
+        f"Telefone: {telefone}\n"
+        f"E-mail: {email}"
     )
 
   def fazer_logout(self):
@@ -787,7 +1023,7 @@ class TelaPerfil(QWidget):
     
     QMessageBox.information(self, "Logout", "Sessão encerrada com sucesso.")
     
-    self.app_stack.setCurrentIndex(1)
+    self.app_stack.setCurrentIndex(0)
 
 
 class TelaPrincipalSistema(QWidget):
@@ -846,16 +1082,9 @@ class TelaPrincipalSistema(QWidget):
         self.btn_perfil.clicked.connect(self.abrir_perfil)
         painel_layout.addWidget(self.btn_perfil)
 
-        btn_estatisticas = QPushButton("  Estatísticas")
-        btn_estatisticas.setMinimumHeight(42)
-        btn_estatisticas.clicked.connect(
-            lambda: self.abrir_pagina("estatisticas")
-        )
-        painel_layout.addWidget(btn_estatisticas)
-
         btn_conexao = QPushButton("  Testar conexão")
         btn_conexao.setMinimumHeight(42)
-        btn_conexao.clicked.connect(self.testar_conexao)
+        btn_conexao.clicked.connect(self.executar_teste_conexao)
         painel_layout.addWidget(btn_conexao)
 
         painel_layout.addStretch()
@@ -978,23 +1207,17 @@ class TelaPrincipalSistema(QWidget):
         self.abrir_pagina("perfil")
 
 
-    def testar_conexao(self):
+    def executar_teste_conexao(self):
         try:
-            resultado = testar_conexao()
+            sucesso, mensagem = testar_conexao()
 
-            if resultado is False or resultado is None:
-                QMessageBox.warning(
-                    self,
-                    "Teste de conexão",
-                    f"A função retornou: {resultado}\n"
-                    "Verifique a implementação de testar_conexao "
-                    "em conexao.py."
+            if sucesso:
+                QMessageBox.information(
+                    self, "Teste de conexão", mensagem
                 )
             else:
-                QMessageBox.information(
-                    self,
-                    "Teste de conexão",
-                    f"Resultado: {resultado}"
+                QMessageBox.warning(
+                    self, "Falha na conexão", mensagem
                 )
 
         except Exception as e:
@@ -1003,7 +1226,6 @@ class TelaPrincipalSistema(QWidget):
                 "Falha na conexão",
                 f"Não foi possível testar a conexão:\n{e}"
             )
-
 
 class TelaRegistrarVenda(QWidget):
 
@@ -1016,15 +1238,16 @@ class TelaRegistrarVenda(QWidget):
         principal.setSpacing(12)
 
         topo = QHBoxLayout()
+
         btn_voltar = QPushButton("← Menu Principal")
         btn_voltar.setFixedSize(145, 35)
         btn_voltar.clicked.connect(
             lambda: self.sub_stack.setCurrentIndex(0)
         )
+
         topo.addWidget(btn_voltar)
         topo.addStretch()
         principal.addLayout(topo)
-
         principal.addStretch()
 
         self.frame = QFrame()
@@ -1047,20 +1270,36 @@ class TelaRegistrarVenda(QWidget):
         descricao.setAlignment(Qt.AlignmentFlag.AlignCenter)
         formulario.addWidget(descricao)
 
+        self.cupom = QLineEdit()
+        self.cupom.setPlaceholderText("Cupom da venda")
+        self.cupom.setMinimumHeight(42)
+        formulario.addWidget(self.cupom)
+
         self.cliente_id = QLineEdit()
-        self.cliente_id.setPlaceholderText("ID do cliente")
+        self.cliente_id.setPlaceholderText(
+            "ID do cliente (opcional)"
+        )
         self.cliente_id.setMinimumHeight(42)
         formulario.addWidget(self.cliente_id)
 
-        self.produto_id = QLineEdit()
-        self.produto_id.setPlaceholderText("ID do produto")
-        self.produto_id.setMinimumHeight(42)
-        formulario.addWidget(self.produto_id)
+        self.subtotal = QLineEdit()
+        self.subtotal.setPlaceholderText(
+            "Subtotal (ex.: 150,00)"
+        )
+        self.subtotal.setMinimumHeight(42)
+        formulario.addWidget(self.subtotal)
 
-        self.quantidade = QLineEdit()
-        self.quantidade.setPlaceholderText("Quantidade")
-        self.quantidade.setMinimumHeight(42)
-        formulario.addWidget(self.quantidade)
+        self.desconto = QLineEdit()
+        self.desconto.setPlaceholderText(
+            "Desconto em % (ex.: 10)"
+        )
+        self.desconto.setMinimumHeight(42)
+        formulario.addWidget(self.desconto)
+
+        self.obs = QLineEdit()
+        self.obs.setPlaceholderText("Observação (opcional)")
+        self.obs.setMinimumHeight(42)
+        formulario.addWidget(self.obs)
 
         principal.addWidget(
             self.frame,
@@ -1071,7 +1310,7 @@ class TelaRegistrarVenda(QWidget):
         botoes.addStretch()
 
         btn_registrar = QPushButton("Registrar Venda")
-        btn_registrar.setFixedSize(145, 35)
+        btn_registrar.setFixedSize(160, 40)
         btn_registrar.clicked.connect(self.registrar)
         botoes.addWidget(btn_registrar)
 
@@ -1079,58 +1318,165 @@ class TelaRegistrarVenda(QWidget):
         principal.addLayout(botoes)
         principal.addStretch()
 
-    def registrar(self):
-        cliente = self.cliente_id.text().strip()
-        produto = self.produto_id.text().strip()
-        quantidade = self.quantidade.text().strip()
+    @staticmethod
+    def converter_decimal(texto):
+        texto = texto.strip()
+        texto = texto.replace("R$", "").replace(" ", "")
 
-        if not cliente or not produto or not quantidade:
+        if not texto:
+            raise ValueError("Preencha os valores obrigatórios.")
+
+        if "," in texto and "." in texto:
+            # Exemplo: 1.500,50
+            texto = texto.replace(".", "").replace(",", ".")
+        else:
+            # Aceita 150,50 ou 150.50
+            texto = texto.replace(",", ".")
+
+        try:
+            valor = Decimal(texto)
+        except InvalidOperation:
+            raise ValueError("Informe um valor numérico válido.")
+
+        if not valor.is_finite():
+            raise ValueError("Informe um valor finito.")
+
+        return valor
+
+    def registrar(self):
+        cupom = self.cupom.text().strip()
+        cliente_texto = self.cliente_id.text().strip()
+        subtotal_texto = self.subtotal.text().strip()
+        desconto_texto = self.desconto.text().strip()
+        observacao = self.obs.text().strip()
+
+        if not cupom:
             QMessageBox.warning(
                 self, "Atenção",
-                "Preencha todos os campos."
+                "Informe o cupom da venda."
+            )
+            self.cupom.setFocus()
+            return
+
+        if not subtotal_texto or not desconto_texto:
+            QMessageBox.warning(
+                self, "Atenção",
+                "Preencha o subtotal e o desconto."
             )
             return
 
         try:
-            cliente_id = int(cliente)
-            produto_id = int(produto)
-            qtd = int(quantidade)
+            # Cliente é opcional.
+            if cliente_texto:
+                cliente_id = int(cliente_texto)
 
-            if cliente_id <= 0 or produto_id <= 0 or qtd <= 0:
+                if cliente_id <= 0:
+                    raise ValueError(
+                        "O ID do cliente deve ser positivo."
+                    )
+            else:
+                cliente_id = None
+
+            subtotal = self.converter_decimal(subtotal_texto)
+            desconto = self.converter_decimal(desconto_texto)
+
+            if subtotal <= 0:
                 raise ValueError(
-                    "Os IDs e a quantidade devem ser positivos."
+                    "O subtotal deve ser maior que zero."
                 )
 
-            # Confirme a assinatura em conexao.py.
-            resultado = registrar_venda(
-                cliente_id, produto_id, qtd
+            if desconto < 0 or desconto > 100:
+                raise ValueError(
+                    "O desconto deve estar entre 0 e 100%."
+                )
+
+            # Calcula o valor final da venda.
+            total = (
+                subtotal * (Decimal("100") - desconto)
+                / Decimal("100")
             )
 
-            if resultado is False:
+            # Obtém o funcionário autenticado.
+            usuario = SessaoUsuario.obter_usuario()
+
+            if not usuario:
                 QMessageBox.warning(
-                    self, "Venda",
-                    "Não foi possível registrar a venda."
+                    self, "Sessão expirada",
+                    "Faça login antes de registrar uma venda."
+                )
+                return
+
+            # Ajuste a chave conforme o retorno real
+            # de app_buscar_funcionario_por_cpf().
+            funcionario_id = None
+
+            if isinstance(usuario, dict):
+                for chave in (
+                    "funcionario_id",
+                    "id_funcionario",
+                    "idFuncionario",
+                    "id"
+                ):
+                    if usuario.get(chave) is not None:
+                        funcionario_id = usuario[chave]
+                        break
+
+            if funcionario_id is None:
+                QMessageBox.critical(
+                    self, "Erro de sessão",
+                    "Não foi possível identificar o ID do funcionário "
+                    "logado. Verifique os dados retornados pelo banco."
+                )
+                return
+
+            funcionario_id = int(funcionario_id)
+
+            if funcionario_id <= 0:
+                raise ValueError(
+                    "O ID do funcionário deve ser positivo."
+                )
+
+            # A função retorna (sucesso, mensagem).
+            sucesso, mensagem = registrar_venda(
+                cupom,
+                cliente_id,
+                funcionario_id,
+                float(subtotal),
+                float(desconto),
+                float(total),
+                observacao
+            )
+
+            if not sucesso:
+                QMessageBox.critical(
+                    self, "Erro ao registrar venda", mensagem
                 )
                 return
 
             QMessageBox.information(
-                self, "Venda",
-                "Solicitação de registro concluída."
+                self,
+                "Venda registrada",
+                f"{mensagem}\n\n"
+                f"Subtotal: {formatar_moeda(subtotal)}\n"
+                f"Desconto: {desconto}%\n"
+                f"Total: {formatar_moeda(total)}"
             )
 
+            self.cupom.clear()
             self.cliente_id.clear()
-            self.produto_id.clear()
-            self.quantidade.clear()
+            self.subtotal.clear()
+            self.desconto.clear()
+            self.obs.clear()
 
-        except ValueError as e:
+        except (ValueError, ArithmeticError) as e:
             QMessageBox.warning(
                 self, "Dados inválidos", str(e)
             )
+
         except Exception as e:
             QMessageBox.critical(
                 self, "Erro ao registrar venda", str(e)
             )
-
 
 class TelaStatusProduto(QWidget):
     def __init__(self, sub_stack):
@@ -1251,13 +1597,14 @@ class TelaCalcularPontos(QWidget):
 
         if not texto:
             QMessageBox.warning(
-                self, "Atenção",
+                self,
+                "Atenção",
                 "Informe o valor da compra."
             )
             return
 
         try:
-            # Aceita valores como 150,00 ou 150.00.
+            # Aceita 150,00; 150.00 e 1.500,00.
             if "," in texto and "." in texto:
                 texto = texto.replace(".", "").replace(",", ".")
             else:
@@ -1270,22 +1617,33 @@ class TelaCalcularPontos(QWidget):
                     "O valor deve ser maior que zero."
                 )
 
-            # Ajuste conforme a assinatura real da função.
+            # Chama a função importada de conexao.py.
             pontos = fn_calcular_pontos_compra(float(valor))
 
+            if pontos is None:
+                self.resultado.setText(
+                    "A função não retornou pontos. "
+                    "Verifique a implementação em conexao.py."
+                )
+                return
+
             self.resultado.setText(
-                f"Valor da compra: R$ {valor:.2f}\n"
+                f"Valor da compra: {formatar_moeda(valor)}\n"
                 f"Pontos calculados: {pontos}"
             )
 
         except (ValueError, ArithmeticError) as e:
             QMessageBox.warning(
-                self, "Valor inválido", str(e)
+                self,
+                "Valor inválido",
+                str(e)
             )
 
         except Exception as e:
             QMessageBox.critical(
-                self, "Erro ao calcular pontos", str(e)
+                self,
+                "Erro ao calcular pontos",
+                f"Não foi possível calcular os pontos:\n{e}"
             )
 
 
@@ -1300,14 +1658,14 @@ class LojaCoreApp(QMainWindow):
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
 
-        self.tela_cadastro = TelaCadastro(self.stack)
         self.tela_login = TelaLogin(self.stack)
+        self.tela_cadastro = TelaCadastro(self.stack)
         self.tela_principal = TelaPrincipalSistema(
             app_stack=self.stack
         )
 
-        self.stack.addWidget(self.tela_cadastro)   # Índice 0
-        self.stack.addWidget(self.tela_login)      # Índice 1
+        self.stack.addWidget(self.tela_login)      # Índice 0
+        self.stack.addWidget(self.tela_cadastro)   # Índice 1
         self.stack.addWidget(self.tela_principal)  # Índice 2
 
         self.aplicar_estilo()
@@ -1316,51 +1674,61 @@ class LojaCoreApp(QMainWindow):
 
     def aplicar_estilo(self):
         self.setStyleSheet("""
+            /* ===== ESTILO GLOBAL ===== */
             QWidget {
-                background-color: #F3F6FA;
+                background-color: #F1F5F9;
                 color: #243447;
                 font-family: Arial;
                 font-size: 13px;
             }
 
+            /* ===== PAINEL LATERAL ===== */
             #painelLateral {
-                background-color: #172B3A;
+                background-color: #142D4E;
+                border: 1px solid #203F63;
                 border-radius: 12px;
             }
 
             #painelLateral QLabel {
                 background-color: transparent;
-                color: white;
+                color: #FFFFFF;
             }
 
             #nomeLoja {
                 font-size: 21px;
                 font-weight: bold;
+                color: #FFFFFF;
             }
 
             #iconeLoja {
-                background-color: #29495D;
-                border: 1px solid #496170;
+                background-color: #203F63;
+                border: 1px solid #41658A;
                 border-radius: 12px;
             }
 
             #painelLateral QPushButton {
-                background-color: #29495D;
-                color: white;
-                border: none;
+                background-color: #203F63;
+                color: #FFFFFF;
+                border: 1px solid transparent;
                 border-radius: 7px;
                 padding: 10px;
                 text-align: left;
             }
 
             #painelLateral QPushButton:hover {
-                background-color: #3B6279;
+                background-color: #2D5680;
+                border: 1px solid #5B85B0;
             }
 
+            #painelLateral QPushButton:pressed {
+                background-color: #10243D;
+            }
+
+            /* ===== TÍTULOS ===== */
             #tituloPagina {
                 font-size: 23px;
                 font-weight: bold;
-                color: #172B3A;
+                color: #142D4E;
                 padding: 5px;
             }
 
@@ -1369,15 +1737,16 @@ class LojaCoreApp(QMainWindow):
                 font-size: 14px;
             }
 
+            /* ===== CARDS DO MENU ===== */
             #cardMenu {
-                background-color: white;
-                border: 1px solid #E0E7EF;
+                background-color: #FFFFFF;
+                border: 1px solid #D8E2EE;
                 border-radius: 12px;
             }
 
             #tituloCard {
                 background-color: transparent;
-                color: #172B3A;
+                color: #142D4E;
                 font-size: 15px;
                 font-weight: bold;
             }
@@ -1387,66 +1756,184 @@ class LojaCoreApp(QMainWindow):
                 color: #64748B;
             }
 
+            /* ===== CAMPOS DE TEXTO ===== */
             QLineEdit {
-                background-color: white;
+                background-color: #FFFFFF;
+                color: #243447;
                 border: 1px solid #CBD5E1;
                 border-radius: 7px;
                 padding: 10px;
                 min-height: 20px;
+                selection-background-color: #2563A6;
+                selection-color: #FFFFFF;
             }
 
             QLineEdit:focus {
-                border: 1px solid #3478A5;
+                border: 1px solid #2563A6;
             }
 
+            QLineEdit:disabled {
+                background-color: #E2E8F0;
+                color: #94A3B8;
+            }
+
+            /* ===== BOTÕES GERAIS ===== */
             QPushButton {
-                background-color: #246B8E;
-                color: white;
-                border: none;
+                background-color: #2563A6;
+                color: #FFFFFF;
+                border: 1px solid #2563A6;
                 border-radius: 7px;
                 padding: 10px 14px;
                 font-weight: bold;
             }
 
             QPushButton:hover {
-                background-color: #195571;
+                background-color: #1D4F85;
+                border-color: #1D4F85;
             }
 
+            QPushButton:pressed {
+                background-color: #163B64;
+            }
+
+            QPushButton:disabled {
+                background-color: #CBD5E1;
+                color: #64748B;
+                border-color: #CBD5E1;
+            }
+
+            /* ===== TABELAS ===== */
             QTableWidget {
-                background-color: white;
+                background-color: #FFFFFF;
                 alternate-background-color: #F1F5F9;
-                border: 1px solid #DCE4EC;
+                color: #243447;
+                border: 1px solid #D8E2EE;
                 border-radius: 7px;
                 gridline-color: #E2E8F0;
+                selection-background-color: #DCEBFA;
+                selection-color: #142D4E;
+            }
+
+            QTableWidget::item {
+                padding: 5px;
+            }
+
+            QTableWidget::item:selected {
+                background-color: #DCEBFA;
+                color: #142D4E;
             }
 
             QHeaderView::section {
-                background-color: #29495D;
-                color: white;
-                padding: 8px;
+                background-color: #203F63;
+                color: #FFFFFF;
+                padding: 9px;
                 border: none;
                 font-weight: bold;
             }
 
+            /* ===== FORMULÁRIOS DE CADASTRO ===== */
+            #cadastro {
+                background-color: #FFFFFF;
+                border: 1px solid #D8E2EE;
+                border-radius: 12px;
+            }
+
+            #login {
+                background-color: #FFFFFF;
+                border: 1px solid #D8E2EE;
+                border-radius: 12px;
+            }
+
             #cadastroCliente {
-                background-color: white;
-                border: 1px solid #DCE4EC;
+                background-color: #FFFFFF;
+                border: 1px solid #D8E2EE;
                 border-radius: 12px;
             }
 
             #cadastroCliente QLabel {
                 background-color: transparent;
+                color: #243447;
             }
 
             #cadastroCliente QLineEdit {
                 background-color: #F8FAFC;
+                color: #243447;
                 border: 1px solid #CBD5E1;
                 border-radius: 7px;
                 padding: 10px;
             }
 
             #cadastroCliente QLineEdit:focus {
-                border: 1px solid #3478A5;
+                border: 1px solid #2563A6;
+            }
+
+            /* ===== INDICADORES DE ESTATÍSTICAS ===== */
+            #valor {
+                background-color: transparent;
+                color: #1D4F85;
+                font-size: 20px;
+                font-weight: bold;
+            }
+
+            /* ===== BARRAS DE ROLAGEM ===== */
+            QScrollBar:vertical {
+                background-color: #E2E8F0;
+                width: 10px;
+                margin: 0;
+                border-radius: 5px;
+            }
+
+            QScrollBar::handle:vertical {
+                background-color: #94A3B8;
+                min-height: 25px;
+                border-radius: 5px;
+            }
+
+            QScrollBar::handle:vertical:hover {
+                background-color: #2563A6;
+            }
+
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical {
+                height: 0;
+            }
+
+            QScrollBar:horizontal {
+                background-color: #E2E8F0;
+                height: 10px;
+                margin: 0;
+                border-radius: 5px;
+            }
+
+            QScrollBar::handle:horizontal {
+                background-color: #94A3B8;
+                min-width: 25px;
+                border-radius: 5px;
+            }
+
+            QScrollBar::handle:horizontal:hover {
+                background-color: #2563A6;
+            }
+
+            QScrollBar::add-line:horizontal,
+            QScrollBar::sub-line:horizontal {
+                width: 0;
+            }
+
+            /* ===== MENSAGENS E SELEÇÃO ===== */
+            QMessageBox {
+                background-color: #F1F5F9;
+                color: #243447;
+            }
+
+            QPlainTextEdit {
+                background-color: #FFFFFF;
+                color: #243447;
+                border: 1px solid #D8E2EE;
+                border-radius: 7px;
+                padding: 12px;
+                selection-background-color: #DCEBFA;
+                selection-color: #142D4E;
             }
         """)
 
