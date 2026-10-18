@@ -69,89 +69,113 @@ def vw_resumo_caixa_diario():
 
 #Functions:
 def fn_autenticar_funcionario(cpf, senha):
-    sessao = SessionLocal()
-    try:
-        query = text("SELECT fn_autenticar_funcionario(:p_cpf, :p_senha);")
-        resultado = sessao.execute(query, {"p_cpf": cpf, "p_senha":senha})
+    with SessionLocal() as sessao:
+        query = text(
+            "SELECT fn_autenticar_funcionario(:p_cpf, :p_senha)"
+        )
 
-        linhas = [dict(row._mapping) for row in resultado.fetchall()]
-        return linhas
-    except Exception as e:
-        print(f"Ocorreu um erro ao autenticar este usuário: {e}")
-        sessao.rollback()
-        raise e
+        resultado = sessao.execute(
+            query,
+            {"p_cpf": cpf, "p_senha": senha}
+        )
+
+        return resultado.scalar_one_or_none()
 
 
 def fn_status_produto(produto_id):
-    #PARA FAZER:
     sessao = SessionLocal()
+
     try:
-        query = text("SELECT fn_status_produto(:p_produto_id);")
-        resultado = sessao.execute(query, {"p_produto_id": produto_id})
-        return resultado
+        query = text(
+            "SELECT fn_status_produto(:p_produto_id);"
+        )
+
+        resultado = sessao.execute(
+            query,
+            {"p_produto_id": produto_id}
+        )
+
+        linha = resultado.fetchone()
+
+        if linha is None:
+            return None
+
+        # Retorna o valor produzido pela função SQL.
+        return linha[0]
+
     except Exception as e:
-        print(f"Ocorreu um erro ao acessar este produto: {e} ")
-        return []
+        print(f"Ocorreu um erro ao consultar o produto: {e}")
+        raise
+
     finally:
         sessao.close()
 
 def fn_calcular_pontos_compra(pontos_total):
-    sessao = SessionLocal()
-    try:
-        query = text("SELECT fn_calcular_pontos_compra(p_pontos_total))")
-        resultado = sessao.execute(query, {"p_pontos_total": pontos_total})
-        return resultado
-    except Exception as e:
-        print(f"Não foi possivel calcular os pontos: {e}")
-    finally:
-        sessao.close()
+    with SessionLocal() as sessao:
+        try:
+            query = text("""
+                SELECT fn_calcular_pontos_compra(:p_valor)
+            """)
+
+            resultado = sessao.execute(
+                query,
+                {"p_valor": Decimal(str(pontos_total))}
+            )
+
+            return resultado.scalar_one_or_none()
+        except Exception as e:
+            print(f"Não foi possivel calcular os pontos: {e}")
+        finally:
+            sessao.close()
 
 #Procedures:
 def cadastrar_cliente(nome, cpf, email):
-    sessao = SessionLocal()
-    try:
-        query = text("""
-            CALL registrar_cliente(
-                CAST(:nome AS VARCHAR),
-                CAST(:cpf AS VARCHAR),
-                CAST(:email AS VARCHAR)
-            )
-        """)
+    with SessionLocal() as sessao:
+        try:
+            query = text("""
+                CALL registrar_cliente(
+                    CAST(:nome AS VARCHAR),
+                    CAST(:cpf AS VARCHAR),
+                    CAST(:email AS VARCHAR)
+                )
+            """)
 
-        sessao.execute(query, {
-            "nome": nome, 
-            "cpf": cpf, 
-            "email": email
-            }
-        )
-        sessao.commit()
-        return True, "Cliente cadastrado com sucesso!"
-    except Exception as e:
-        return False, f"Erro ao cadastrar cliente: {e}"
-    finally:
-        sessao.close
+            sessao.execute(query, {
+                "nome": nome, 
+                "cpf": cpf, 
+                "email": email
+                }
+            )
+            sessao.commit()
+            return True, "Cliente cadastrado com sucesso!"
+        except Exception as e:
+            return False, f"Erro ao cadastrar cliente: {e}"
+        finally:
+            sessao.close()
 
 def app_buscar_funcionario_por_cpf(cpf):
     try:
         with engine.connect() as conexao:
             resultado = conexao.execute(
                 text("""
-                    SELECT cpf, nome_Usuario, telefone, email
+                    SELECT
+                        id_funcionario AS funcionario_id,
+                        cpf,
+                        nome_usuario AS "nome_Usuario",
+                        telefone,
+                        email
                     FROM funcionario
                     WHERE cpf = :cpf
                 """),
-                {"cpf": cpf}                
+                {"cpf": cpf}
             )
 
             funcionario = resultado.mappings().first()
 
-            if funcionario:
-                return dict(funcionario)
+            return dict(funcionario) if funcionario else None
 
-            return None
-        
     except Exception as e:
-        print(f"Erro ao buscar funcionário ativo: {e}")
+        print(f"Erro ao buscar funcionário: {e}")
         return None
 
 def registrar_funcionarios(
@@ -233,25 +257,29 @@ def registrar_venda(cupom: str, cliente_id: int | None, funcionario_id: int, sub
     finally:
         sessao.close()
 
-def adicionar_item_venda():
+def adicionar_item_venda(venda_id:int, variacao_id:int, quantidade:int, preco_unitario:float, desconto_item:float):
     sessao = SessionLocal()
     try:
         query = text("""
             CALL adicionar_item_venda(
-                CAST(),
-                CAST(),
-                CAST(),
-                CAST(),
-                CAST()
+                CAST(:venda_id AS INTEGER),
+                CAST(:variacao_id AS INTEGER),
+                CAST(:quantidade AS INTEGER),
+                CAST(:preco_unitario AS NUMERIC),
+                CAST(:desconto_item AS NUMERIC)
             );
         """)
 
         sessao.execute(query, {
-
+            "venda_id": int(venda_id),
+            "variacao_id": int(variacao_id),
+            "quantidade": int(quantidade),
+            "preco_unitario": float(preco_unitario),
+            "desconto_item": float(desconto_item)
         })
+        sessao.commit()
+        return True, "Item adicionado numa venda"
     except Exception as e:
         return False, f"Erro: {e}"
     finally:
         sessao.close()
-
-#PARA FAZER: TERMINAR!!!
