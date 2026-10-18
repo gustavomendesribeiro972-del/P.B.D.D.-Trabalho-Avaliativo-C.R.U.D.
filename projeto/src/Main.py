@@ -527,20 +527,31 @@ class TelaEstatisticas(QWidget):
         layout.addWidget(label_tabela)
 
         self.tabela_geral = QTableWidget()
-        self.tabela_geral.setColumnCount(4)
-        self.tabela_geral.setHorizontalHeaderLabels(
-            ["ID", "Produto", "Quantidade", "Preço"]
-        )
+        self.tabela_geral.setColumnCount(10)
+        self.tabela_geral.setHorizontalHeaderLabels([
+            "ID Produto",
+            "ID Variação",
+            "Nome do Produto",
+            "SKU",
+            "ID Categoria",
+            "Estoque Disponível",
+            "Estoque Mínimo",
+            "Status",
+            "Custo Padrão",
+            "Preço de Venda Base"
+        ])
         self.tabela_geral.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
-        )
-
-        self.tabela_geral.verticalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.ResizeToContents
         )
 
+        self.tabela_geral.horizontalHeader().setStretchLastSection(True)
         self.tabela_geral.setMinimumHeight(300)
         self.tabela_geral.setAlternatingRowColors(True)
+        self.tabela_geral.setWordWrap(True)
+        self.tabela_geral.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+
         layout.addWidget(self.tabela_geral)
 
         # Botões de Ação
@@ -636,12 +647,27 @@ class TelaEstatisticas(QWidget):
 
             for linha, registro in enumerate(dados_gerais):
                 for coluna, valor in enumerate(registro):
-                    if coluna < self.tabela_geral.columnCount():
-                        self.tabela_geral.setItem(
-                            linha,
-                            coluna,
-                            QTableWidgetItem(str(valor))
+                    if coluna >= self.tabela_geral.columnCount():
+                        break
+
+                    # Formata valores monetários.
+                    if coluna in (8, 9) and valor is not None:
+                        texto = formatar_moeda(valor)
+                    elif valor is None:
+                        texto = "—"
+                    else:
+                        texto = str(valor)
+
+                    item = QTableWidgetItem(texto)
+
+                    # Alinha valores numéricos à direita.
+                    if coluna in (0, 1, 4, 5, 6, 8, 9):
+                        item.setTextAlignment(
+                            Qt.AlignmentFlag.AlignRight
+                            | Qt.AlignmentFlag.AlignVCenter
                         )
+
+                    self.tabela_geral.setItem(linha, coluna, item)
 
         except Exception as e:
             QMessageBox.critical(
@@ -664,18 +690,33 @@ class TelaVendas(QWidget):
     layout.addWidget(titulo)
 
     self.tabela = QTableWidget()
-    self.tabela.setColumnCount(4)
-    self.tabela.setHorizontalHeaderLabels(["ID", "Cliente", "Data", "Total"])
+    self.tabela.setColumnCount(8)
+    self.tabela.setHorizontalHeaderLabels([
+        "ID Venda",
+        "Nº Cupom",
+        "ID Cliente",
+        "ID Funcionário",
+        "Operador",
+        "Total",
+        "Status",
+        "Data e Hora"
+    ])
+
     self.tabela.horizontalHeader().setSectionResizeMode(
-        QHeaderView.ResizeMode.Stretch
+        QHeaderView.ResizeMode.ResizeToContents
     )
+    self.tabela.horizontalHeader().setStretchLastSection(True)
 
     self.tabela.verticalHeader().setSectionResizeMode(
         QHeaderView.ResizeMode.ResizeToContents
     )
 
     self.tabela.setMinimumHeight(300)
-    self.tabela.setAlternatingRowColors(True)    
+    self.tabela.setAlternatingRowColors(True)
+    self.tabela.setHorizontalScrollBarPolicy(
+        Qt.ScrollBarPolicy.ScrollBarAsNeeded
+    )
+
     layout.addWidget(self.tabela)
 
     btn_carregar = QPushButton("Atualizar Vendas Recentes")
@@ -692,17 +733,48 @@ class TelaVendas(QWidget):
     self.tabela.setRowCount(0)
 
     try:
-      dados = vw_vendas_recentes() or []
-      if dados:
+        dados = vw_vendas_recentes() or []
+
         self.tabela.setRowCount(len(dados))
-        for row_idx, row_data in enumerate(dados):
-          for col_idx, valor in enumerate(row_data):
-            if col_idx < self.tabela.columnCount():
-                self.tabela.setItem(
-                    row_idx, col_idx, QTableWidgetItem(str(valor))
-                )
+
+        for linha, registro in enumerate(dados):
+            for coluna, valor in enumerate(registro):
+                if coluna >= self.tabela.columnCount():
+                    break
+
+                if coluna == 5 and valor is not None:
+                    # Total da venda em reais.
+                    texto = formatar_moeda(valor)
+
+                elif coluna == 7 and valor is not None:
+                    # Data e hora em formato legível.
+                    if hasattr(valor, "strftime"):
+                        texto = valor.strftime("%d/%m/%Y %H:%M:%S")
+                    else:
+                        texto = str(valor)
+
+                elif valor is None:
+                    texto = "—"
+
+                else:
+                    texto = str(valor)
+
+                item = QTableWidgetItem(texto)
+
+                if coluna in (0, 2, 3, 5):
+                    item.setTextAlignment(
+                        Qt.AlignmentFlag.AlignRight
+                        | Qt.AlignmentFlag.AlignVCenter
+                    )
+
+                self.tabela.setItem(linha, coluna, item)
+
     except Exception as e:
-      print(f"Erro ao carregar vendas: {e}")
+        QMessageBox.critical(
+            self,
+            "Erro ao carregar vendas",
+            f"Não foi possível consultar as vendas recentes:\n{e}"
+        )
 
 
 class TelaEstoqueProdutos(QWidget):
@@ -724,20 +796,41 @@ class TelaEstoqueProdutos(QWidget):
         )
 
         self.tabela_critico = QTableWidget()
-        self.tabela_critico.setColumnCount(3)
-        self.tabela_critico.setHorizontalHeaderLabels(
-            ["Produto", "Qtd Atual", "Mínimo"]
-        )
+        self.tabela_critico.setColumnCount(10)
+        self.tabela_critico.setHorizontalHeaderLabels([
+            "ID Produto",
+            "Nome do Produto",
+            "ID Variação",
+            "SKU",
+            "Tamanho",
+            "Cor",
+            "Código de Barras",
+            "Estoque Atual",
+            "Estoque Mínimo",
+            "Necessidade de Reposição",
+            " "
+        ])
+
         self.tabela_critico.setAlternatingRowColors(True)
+
         self.tabela_critico.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
+            QHeaderView.ResizeMode.ResizeToContents
         )
 
         self.tabela_critico.verticalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.ResizeToContents
         )
 
-        self.tabela_critico.setMinimumHeight(300)        
+        self.tabela_critico.setMinimumHeight(300)
+
+        self.tabela_critico.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+
+        self.tabela_critico.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+
         layout.addWidget(self.tabela_critico)
 
         btn_atualizar = QPushButton("Atualizar Estoque")
@@ -764,72 +857,115 @@ class TelaEstoqueProdutos(QWidget):
 
             for linha, registro in enumerate(dados):
                 for coluna, valor in enumerate(registro):
-                    self.tabela_critico.setItem(
-                        linha,
-                        coluna,
-                        QTableWidgetItem(str(valor))
-                    )
+                    if coluna < self.tabela_critico.columnCount():
+                        item = QTableWidgetItem(
+                            "" if valor is None else str(valor)
+                        )
+                        self.tabela_critico.setItem(linha, coluna, item)
 
         except Exception as e:
             QMessageBox.critical(
                 self,
                 "Erro ao carregar estoque",
-                str(e)
+                f"Não foi possível carregar o estoque crítico:\n{e}"
             )
 
 
 class TelaCaixaDiario(QWidget):
 
-  def __init__(self, sub_stack):
-    super().__init__()
-    self.sub_stack = sub_stack
-    layout = QVBoxLayout(self)
-    layout.setContentsMargins(20, 20, 20, 20)
+    def __init__(self, sub_stack):
+        super().__init__()
+        self.sub_stack = sub_stack
 
-    titulo = QLabel("Resumo do Caixa Diário")
-    titulo.setFont(QFont("Arial", 18, QFont.Weight.Bold))
-    layout.addWidget(titulo)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
 
-    self.texto_resumo = QPlainTextEdit()
-    self.texto_resumo.setReadOnly(True)
-    self.texto_resumo.setPlaceholderText(
-        "Carregando resumo do caixa..."
-    )
-    self.texto_resumo.setFont(QFont("Consolas", 12))
-    self.texto_resumo.setLineWrapMode(
-        QPlainTextEdit.LineWrapMode.WidgetWidth
-    )
-    layout.addWidget(self.texto_resumo, 1)
+        titulo = QLabel("Resumo do Caixa Diário")
+        titulo.setFont(QFont("Arial", 18, QFont.Weight.Bold))
+        layout.addWidget(titulo)
 
-    btn_voltar = QPushButton("Voltar ao Menu Principal")
-    btn_voltar.clicked.connect(lambda: self.sub_stack.setCurrentIndex(0))
-    layout.addWidget(btn_voltar)
-
-    self.carregar_caixa()
-
-  def carregar_caixa(self):
-    try:
-        resumo = vw_resumo_caixa_diario()
-        texto_formatado = formatar_resumo_caixa(resumo)
-
-        # Guarda o texto formatado na área rolável.
-        self.texto_resumo.setPlainText(texto_formatado)
-
-        # Volta ao início após atualizar os dados.
-        cursor = self.texto_resumo.textCursor()
-        cursor.movePosition(cursor.MoveOperation.Start)
-        self.texto_resumo.setTextCursor(cursor)
-
-    except Exception as e:
+        self.texto_resumo = QPlainTextEdit()
+        self.texto_resumo.setReadOnly(True)
+        self.texto_resumo.setLineWrapMode(
+            QPlainTextEdit.LineWrapMode.WidgetWidth
+        )
+        self.texto_resumo.setFont(QFont("Consolas", 11))
         self.texto_resumo.setPlainText(
-            "Não foi possível carregar o resumo do caixa."
+            "Carregando resumo do caixa..."
         )
+        layout.addWidget(self.texto_resumo)
 
-        QMessageBox.critical(
-            self,
-            "Erro no caixa diário",
-            str(e)
+        btn_atualizar = QPushButton("Atualizar Resumo")
+        btn_atualizar.clicked.connect(self.carregar_caixa)
+        layout.addWidget(btn_atualizar)
+
+        btn_voltar = QPushButton("Voltar ao Menu Principal")
+        btn_voltar.clicked.connect(
+            lambda: self.sub_stack.setCurrentIndex(0)
         )
+        layout.addWidget(btn_voltar)
+
+        self.carregar_caixa()
+
+    def carregar_caixa(self):
+        try:
+            dados = vw_resumo_caixa_diario() or []
+
+            if not dados:
+                self.texto_resumo.setPlainText(
+                    "Nenhum movimento registrado no caixa diário."
+                )
+                return
+
+            linhas = [
+                "=" * 55,
+                "             RESUMO DO CAIXA DIÁRIO",
+                "=" * 55,
+                ""
+            ]
+
+            for registro in dados:
+                # Compatível com resultados do SQLAlchemy
+                if hasattr(registro, "_mapping"):
+                    registro = dict(registro._mapping)
+                elif not isinstance(registro, dict):
+                    registro = dict(registro)
+
+                nome = registro.get(
+                    "nome_operador", "Não informado"
+                )
+                funcionario = registro.get(
+                    "id_funcionario", "Não informado"
+                )
+                data = registro.get(
+                    "data_venda", "Não informada"
+                )
+                quantidade = registro.get(
+                    "quantidade_vendas", 0
+                )
+
+                linhas.extend([
+                    f"Operador: {nome}",
+                    f"ID do funcionário: {funcionario}",
+                    f"Data: {data}",
+                    f"Quantidade de vendas: {quantidade}",
+                    "",
+                    f"Subtotal: {formatar_moeda(registro.get('total_subtotal', 0) or 0)}",
+                    f"Descontos: {formatar_moeda(registro.get('total_descontos', 0) or 0)}",
+                    f"Total faturado: {formatar_moeda(registro.get('total_faturado', 0) or 0)}",
+                    f"Ticket médio: {formatar_moeda(registro.get('ticket_medio', 0) or 0)}",
+                    "",
+                    "-" * 55,
+                    ""
+                ])
+
+            self.texto_resumo.setPlainText("\n".join(linhas))
+
+        except Exception as e:
+            self.texto_resumo.setPlainText(
+                f"Não foi possível carregar o resumo do caixa.\n\n{e}"
+            )
 
 
 class TelaCadastrosPontos(QWidget):
