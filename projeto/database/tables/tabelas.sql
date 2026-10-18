@@ -53,9 +53,9 @@ CREATE TABLE funcionario(
 CREATE TABLE cliente(
 	id_cliente SERIAL PRIMARY KEY,
 	nome VARCHAR(100) NOT NULL,
-	cpf VARCHAR(11) UNIQUE,
+	cpf VARCHAR(11),
 	telefone VARCHAR(15),
-	email VARCHAR(254)UNIQUE,
+	email VARCHAR(254),
 	endereco VARCHAR(250),
 	data_nascimento DATE,
 	status VARCHAR(30) NOT NULL DEFAULT 'ATIVO',
